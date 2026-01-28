@@ -1,0 +1,7 @@
+{
+  "name": "StilAI - Moda Danışmanı",
+  "description": "Yapay zeka destekli kişisel moda ve stil danışmanı.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
