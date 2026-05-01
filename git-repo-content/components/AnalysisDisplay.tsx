@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FashionAnalysis, ChatMessage, StoredItem, WardrobeMatchResult } from '../types';
 import { RotateCcw, Star, Calendar, ShoppingBag, Lightbulb, AlertCircle, X, Send, MessageCircle, Heart, Share2, CloudSun, Tag, Volume2, StopCircle, Palette, Hash, Check, Shirt, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { askStylist, findWardrobeMatch } from '../services/geminiService';
-import { getItemsFromFirestore } from '../services/dbService';
 
 interface AnalysisDisplayProps {
   data: FashionAnalysis;
@@ -27,26 +26,6 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ data, onReset,
   const [noWardrobeError, setNoWardrobeError] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Automatically trigger wardrobe match when the component mounts with new data
-  useEffect(() => {
-    // Check if we even have a wardrobe BEFORE triggering the loud flashing loader
-    const autoMatch = async () => {
-        try {
-            const wardrobe = await getItemsFromFirestore();
-            const otherItems = wardrobe.filter(i => i.analysis.parca_analizi !== data.parca_analizi);
-            
-            // Only auto-trigger if there are other items to match against
-            if (otherItems.length > 0) {
-                handleWardrobeMatch(wardrobe, otherItems);
-            }
-        } catch (e) {
-            // Silently fail auto-check
-        }
-    };
-    
-    autoMatch();
-  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -123,23 +102,23 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ data, onReset,
     });
   };
 
-  const handleWardrobeMatch = async (prefetchedWardrobe?: StoredItem[], prefetchedOtherItems?: StoredItem[]) => {
+  const handleWardrobeMatch = async () => {
     setMatchingLoading(true);
     setMatchResult(null);
     setNoWardrobeError(false);
 
     try {
-        // Get wardrobe directly from Firestore
-        const wardrobe = prefetchedWardrobe || await getItemsFromFirestore();
-        
-        if (!wardrobe || wardrobe.length === 0) {
+        // Get wardrobe from local storage
+        const stored = localStorage.getItem('stilai_wardrobe');
+        if (!stored) {
             setNoWardrobeError(true);
             setMatchingLoading(false);
             return;
         }
 
+        const wardrobe: StoredItem[] = JSON.parse(stored);
         // Filter out the current item if it was just saved
-        const otherItems = prefetchedOtherItems || wardrobe.filter(i => i.analysis.parca_analizi !== data.parca_analizi);
+        const otherItems = wardrobe.filter(i => i.analysis.parca_analizi !== data.parca_analizi);
         
         if (otherItems.length === 0) {
             setNoWardrobeError(true);
@@ -148,19 +127,15 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ data, onReset,
         }
 
         const result = await findWardrobeMatch(data, otherItems);
-        if (result && result.matchedItemId) {
+        if (result) {
             setMatchResult(result);
             const matchedItem = otherItems.find(i => i.id === result.matchedItemId);
             if (matchedItem) {
                 setMatchedItemImage(matchedItem.image);
             }
-        } else {
-            // In case no good match is found
-            setNoWardrobeError(true);
         }
     } catch (e) {
         console.error("Matching error", e);
-        setNoWardrobeError(true);
     } finally {
         setMatchingLoading(false);
     }
@@ -289,7 +264,7 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ data, onReset,
                     Bu parçayı dolabındaki diğer kıyafetlerle eşleştirerek en iyi kombini bulalım mı?
                 </p>
                 <button 
-                    onClick={() => handleWardrobeMatch()}
+                    onClick={handleWardrobeMatch}
                     className="w-full bg-white text-gray-900 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition flex items-center justify-center"
                 >
                     <Sparkles className="w-4 h-4 mr-2 text-purple-600" />

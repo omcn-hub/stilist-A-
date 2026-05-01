@@ -1,0 +1,101 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() { 
+      return request.auth != null; 
+    }
+    
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function incoming() { 
+      return request.resource.data; 
+    }
+    
+    function existing() { 
+      return resource.data; 
+    }
+
+    // User Profile Validation
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['userId', 'email', 'name', 'bodyType', 'styleGoal', 'gender']) 
+        && data.keys().size() == 6
+        && data.userId == request.auth.uid
+        && data.email is string
+        && data.email.size() <= 200
+        && (data.name is string)
+        && (data.bodyType is string)
+        && (data.styleGoal is string)
+        && (data.gender is string);
+    }
+
+    // Wardrobe Item Validation
+    function isValidWardrobeItem(data) {
+      return data.keys().hasAll(['userId', 'image', 'date', 'isFavorite', 'analysis']) 
+        && data.keys().size() == 5
+        && data.userId == request.auth.uid
+        && data.image is string
+        && data.image.size() <= 1048576 // 1MB max for base64 image data
+        && data.date is string
+        && data.date.size() <= 100
+        && data.isFavorite is bool
+        && data.analysis is map;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if false; // No blanket reads
+
+      // Create profile
+      allow create: if isSignedIn() 
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming());
+
+      // Update profile
+      allow update: if isSignedIn() 
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming())
+        && incoming().userId == existing().userId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'bodyType', 'styleGoal', 'gender']);
+        
+      allow delete: if false;
+
+      // Subcollection: Wardrobe Items
+      match /wardrobe/{itemId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(itemId);
+        allow list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() 
+          && isValidId(userId)
+          && isValidId(itemId)
+          && request.auth.uid == userId
+          && isValidWardrobeItem(incoming())
+          // Relational Sync: Parent user profile must exist
+          && exists(/databases/$(database)/documents/users/$(userId));
+
+        allow update: if isSignedIn() 
+          && isValidId(userId)
+          && isValidId(itemId)
+          && request.auth.uid == userId
+          && incoming().userId == existing().userId
+          && isValidWardrobeItem(incoming())
+          && incoming().diff(existing()).affectedKeys().hasOnly(['isFavorite']);
+
+        allow delete: if isSignedIn() 
+          && isValidId(userId)
+          && isValidId(itemId)
+          && request.auth.uid == userId;
+      }
+    }
+  }
+}

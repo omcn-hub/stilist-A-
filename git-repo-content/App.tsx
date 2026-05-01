@@ -12,8 +12,6 @@ import { FashionAnalysis, StoredItem, UserProfile } from './types';
 import { auth } from './services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
-import { saveItemToFirestore, updateFavoriteInFirestore, syncLocalStorageToFirestore, createOrUpdateUserProfile } from './services/dbService';
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -26,13 +24,12 @@ const App: React.FC = () => {
   
   const [currentIsFavorite, setCurrentIsFavorite] = useState<boolean>(false);
   const [showCamera, setShowCamera] = useState<boolean>(false);
-  const [mood, setMood] = useState<string>('Rahat ve doğal');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Listen for Firebase Auth state changes
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         // Map Firebase user to app UserProfile
         const appUser: UserProfile = {
@@ -43,20 +40,6 @@ const App: React.FC = () => {
           joinDate: user.metadata.creationTime
         };
         setCurrentUser(appUser);
-        
-        // Ensure user profile exists in Firestore FIRST to satisfy the 'exists()' Master Gate rule
-        try {
-            await createOrUpdateUserProfile(appUser);
-        } catch (e) {
-            console.error("Error creating user profile on login", e);
-        }
-        
-        // Sync local storage to firestore on login
-        try {
-            await syncLocalStorageToFirestore();
-        } catch (e) {
-            console.error("Error syncing local storage", e);
-        }
       } else {
         setCurrentUser(null);
       }
@@ -125,10 +108,12 @@ const App: React.FC = () => {
     });
   };
 
-  // Helper to save to Firestore
-  const saveToWardrobe = async (img: string, data: FashionAnalysis) => {
+  // Helper to save to local storage
+  // NOTE: In a full production app, this should save to Firestore instead of LocalStorage
+  const saveToWardrobe = (img: string, data: FashionAnalysis) => {
     try {
       const uniqueId = Date.now().toString();
+      // Update the analysis object with the ID
       data.id = uniqueId;
 
       const newItem: StoredItem = {
@@ -139,20 +124,37 @@ const App: React.FC = () => {
         isFavorite: false
       };
       
-      await saveItemToFirestore(newItem);
+      const existing = localStorage.getItem('stilai_wardrobe');
+      const items: StoredItem[] = existing ? JSON.parse(existing) : [];
+      
+      // Limit to last 20 items to save space
+      const updated = [...items, newItem].slice(-20);
+      
+      localStorage.setItem('stilai_wardrobe', JSON.stringify(updated));
     } catch (e) {
-      console.error("Storage limit reached or error saving", e);
+      console.error("Storage limit reached or error saving");
     }
   };
 
-  const toggleCurrentFavorite = async () => {
+  const toggleCurrentFavorite = () => {
     if (!analysis || !analysis.id) return;
 
     try {
-      await updateFavoriteInFirestore(analysis.id, !currentIsFavorite);
-      setCurrentIsFavorite(!currentIsFavorite);
+      const existing = localStorage.getItem('stilai_wardrobe');
+      if (existing) {
+        const items: StoredItem[] = JSON.parse(existing);
+        const updatedItems = items.map(item => {
+          if (item.analysis.id === analysis.id || item.id === analysis.id) {
+            return { ...item, isFavorite: !item.isFavorite };
+          }
+          return item;
+        });
+        
+        localStorage.setItem('stilai_wardrobe', JSON.stringify(updatedItems));
+        setCurrentIsFavorite(!currentIsFavorite);
+      }
     } catch (e) {
-      console.error("Error toggling favorite", e);
+      console.error("Error toggling favorite");
     }
   };
 
@@ -169,7 +171,7 @@ const App: React.FC = () => {
     try {
       const base64Data = base64String.split(',')[1];
       const mimeType = base64String.split(';')[0].split(':')[1];
-      const result = await analyzeClothingImage(base64Data, mimeType, mood);
+      const result = await analyzeClothingImage(base64Data, mimeType);
       
       // Save valid results to wardrobe automatically if no error
       if (!result.hata) {
@@ -178,13 +180,9 @@ const App: React.FC = () => {
       
       setAnalysis(result);
 
-    } catch (apiError: any) {
-      if (apiError?.message?.includes('The user aborted a request') || apiError?.message?.includes('signal is aborted without reason') || apiError?.name === 'AbortError') {
-         setError("Zaman aşımı veya bağlantı kesintisi yaşandı. Lütfen tekrar deneyin.");
-      } else {
-         setError("Analiz sırasında bir hata oluştu. Lütfen tekrar deneyin.");
-         console.error(apiError);
-      }
+    } catch (apiError) {
+      setError("Analiz sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+      console.error(apiError);
     } finally {
       setLoading(false);
     }
@@ -241,16 +239,9 @@ const App: React.FC = () => {
       return <AuthView onLoginSuccess={() => {}} />;
   }
 
-  const handleHistoryItemClick = (item: StoredItem) => {
-    setImage(item.image);
-    setAnalysis(item.analysis);
-    setCurrentIsFavorite(item.isFavorite);
-    setActiveTab('home'); // Go to home tab but show the AnalysisDisplay because image/analysis are set
-  };
-
   const renderContent = () => {
     if (activeTab === 'profile') {
-      return <ProfileView user={currentUser} onLogout={handleLogout} onUpdateUser={handleUpdateUser} onHistoryItemClick={handleHistoryItemClick} />;
+      return <ProfileView user={currentUser} onLogout={handleLogout} onUpdateUser={handleUpdateUser} />;
     }
 
     if (loading) {
@@ -289,7 +280,7 @@ const App: React.FC = () => {
        );
     }
 
-    return <HomeView onCameraClick={triggerCamera} onGalleryClick={triggerGallery} mood={mood} setMood={setMood} />;
+    return <HomeView onCameraClick={triggerCamera} onGalleryClick={triggerGallery} />;
   };
 
   const shouldHideNav = showCamera;

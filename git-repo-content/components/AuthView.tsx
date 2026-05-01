@@ -43,12 +43,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
       onLoginSuccess();
     } catch (err: any) {
       console.error(err);
-      // Suppress standard abort/popup closed errors since they are just user cancellations
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request' || err.message?.includes('The user aborted a request') || err.message?.includes('signal is aborted without reason')) {
-          setError(null);
-      } else {
-          setError(getFirebaseErrorMessage(err.code));
-      }
+      setError(getFirebaseErrorMessage(err.code));
     } finally {
       setGoogleLoading(false);
     }
@@ -79,8 +74,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
             await updateProfile(auth.currentUser, {
                 displayName: formData.name
             });
-            // We force a token refresh so that onAuthStateChanged (or at least subsequent requests) pick up the displayName right away
-            await auth.currentUser.getIdToken(true);
         }
         onLoginSuccess();
       }

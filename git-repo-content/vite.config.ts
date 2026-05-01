@@ -17,11 +17,6 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
-          'node-fetch': path.resolve(__dirname, 'mock-node-fetch.js'),
-          'formdata-polyfill/FormData.js': path.resolve(__dirname, 'mock-formdata.js'),
-          'formdata-polyfill/formdata.min.js': path.resolve(__dirname, 'mock-formdata.js'),
-          'formdata-polyfill/esm.min.js': path.resolve(__dirname, 'mock-formdata.js'),
-          'formdata-polyfill': path.resolve(__dirname, 'mock-formdata.js'),
         }
       }
     };

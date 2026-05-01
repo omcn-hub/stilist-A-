@@ -6,10 +6,7 @@ interface ProfileViewProps {
   user: UserProfile | null;
   onLogout: () => void;
   onUpdateUser: (user: UserProfile) => void;
-  onHistoryItemClick?: (item: StoredItem) => void;
 }
-
-import { getItemsFromFirestore, clearWardrobeHistory, updateFavoriteInFirestore, createOrUpdateUserProfile, loadUserProfile } from '../services/dbService';
 
 const ProfileView: React.FC<ProfileViewProps> = ({ user, onLogout, onUpdateUser }) => {
   const [history, setHistory] = useState<StoredItem[]>([]);
@@ -41,74 +38,52 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onLogout, onUpdateUser 
     loadPreferences();
   }, []);
 
-  const loadHistory = async () => {
-    try {
-      const items = await getItemsFromFirestore();
-      
-      // Sort by date descending
-      items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      setHistory(items);
-    } catch (e) {
-      console.error("Failed to load history from Firestore", e);
-    }
-  };
-
-  const loadPreferences = async () => {
-    try {
-      const profile = await loadUserProfile();
-      if (profile) {
-        setPreferences({
-          bodyType: profile.bodyType || 'Belirtilmemiş',
-          styleGoal: profile.styleGoal || 'Belirtilmemiş',
-          gender: profile.gender || 'Kadın'
-        });
+  const loadHistory = () => {
+    const stored = localStorage.getItem('stilai_wardrobe');
+    if (stored) {
+      try {
+        setHistory(JSON.parse(stored).reverse()); // Show newest first
+      } catch (e) {
+        console.error("Failed to parse history");
       }
-    } catch (e) {
-       console.error("Error loading profile", e);
     }
   };
 
-  const savePreferences = async () => {
-    if (user) {
-        await createOrUpdateUserProfile(user, preferences);
+  const loadPreferences = () => {
+    const stored = localStorage.getItem('stilai_user_prefs');
+    if (stored) {
+      try {
+        setPreferences(JSON.parse(stored));
+      } catch (e) {}
     }
-    // Still keep in localStorage for Gemini prompt context simplicity
+  };
+
+  const savePreferences = () => {
     localStorage.setItem('stilai_user_prefs', JSON.stringify(preferences));
     setShowSaveSuccess(true);
     setTimeout(() => setShowSaveSuccess(false), 2000);
   };
 
-  const handleClearData = async () => {
+  const handleClearData = () => {
     if(confirm("Tüm gardırop geçmişiniz ve kayıtlı analizleriniz silinecek. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?")) {
-      await clearWardrobeHistory();
+      localStorage.removeItem('stilai_wardrobe');
       setHistory([]);
       alert("Tüm veriler başarıyla temizlendi.");
     }
   }
 
-  const toggleFavorite = async (id: string) => {
-    const item = history.find(i => i.id === id);
-    if (!item) return;
-
-    const newFavStatus = !item.isFavorite;
-
-    // Optimistic UI update
-    const updatedHistory = history.map(h => {
-      if (h.id === id) {
-        return { ...h, isFavorite: newFavStatus };
+  const toggleFavorite = (id: string) => {
+    const updatedHistory = history.map(item => {
+      if (item.id === id) {
+        return { ...item, isFavorite: !item.isFavorite };
       }
-      return h;
+      return item;
     });
-    setHistory(updatedHistory);
 
-    try {
-      await updateFavoriteInFirestore(id, newFavStatus);
-    } catch (e) {
-      console.error("Error toggling favorite in firestore", e);
-      // Revert if error
-      setHistory(history);
-    }
+    // Save reversed back to storage (since history is displayed reversed)
+    const storageOrder = [...updatedHistory].reverse();
+    localStorage.setItem('stilai_wardrobe', JSON.stringify(storageOrder));
+    setHistory(updatedHistory);
   };
 
   const handleAvatarClick = () => {
@@ -291,11 +266,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onLogout, onUpdateUser 
                 ) : (
                 <div className="space-y-3">
                     {displayedItems.map((item, idx) => (
-                    <div 
-                        key={idx} 
-                        onClick={() => onHistoryItemClick?.(item)}
-                        className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-start space-x-3 relative cursor-pointer hover:bg-gray-50 transition"
-                    >
+                    <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-start space-x-3 relative">
                         <div className="w-16 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 relative">
                            <img src={item.image} className="w-full h-full object-cover" alt="Kıyafet" />
                            {item.analysis.renk_kodu && (
@@ -320,7 +291,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onLogout, onUpdateUser 
                             </div>
                         </div>
                         <button 
-                        onClick={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
+                        onClick={() => toggleFavorite(item.id)}
                         className="absolute bottom-3 right-3 text-gray-300 hover:text-pink-500 transition"
                         >
                         <Heart className={`w-4 h-4 ${item.isFavorite ? 'fill-pink-500 text-pink-500' : ''}`} />

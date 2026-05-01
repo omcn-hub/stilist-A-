@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "WardrobeItem": {
+      "title": "WardrobeItem",
+      "description": "An item of clothing analyzed and saved by the user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns this item."
+        },
+        "image": {
+          "type": "string",
+          "description": "Base64 encoded image string."
+        },
+        "date": {
+          "type": "string",
+          "description": "ISO date string of when the item was added."
+        },
+        "isFavorite": {
+          "type": "boolean",
+          "description": "Whether the item is marked as a favorite."
+        },
+        "analysis": {
+          "type": "object",
+          "description": "Analysis data object returned by Gemini."
+        }
+      },
+      "required": ["userId", "image", "date", "isFavorite", "analysis"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "A user's profile and preferences.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The user's ID."
+        },
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "bodyType": {
+          "type": "string"
+        },
+        "styleGoal": {
+          "type": "string"
+        },
+        "gender": {
+          "type": "string"
+        }
+      },
+      "required": ["userId", "email"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User profiles and settings."
+    },
+    "users/{userId}/wardrobe/{itemId}": {
+      "schema": {
+        "$ref": "#/entities/WardrobeItem"
+      },
+      "description": "User's saved clothing items and analyses."
+    }
+  }
+}

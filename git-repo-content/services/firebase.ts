@@ -1,13 +1,24 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
-import { getFirestore } from 'firebase/firestore';
+// ------------------------------------------------------------------
+// ÖNEMLİ: Kendi Firebase Projenizin bilgilerini buraya girmelisiniz.
+// https://console.firebase.google.com/ adresinden proje oluşturup
+// Authentication kısmını (Email/Password ve Google) aktif etmelisiniz.
+// ------------------------------------------------------------------
 
-import firebaseConfig from '../firebase-applet-config.json';
+const firebaseConfig = {
+  apiKey: "AIzaSyDO2bszxX9KUbH4VnIPnz9j3q0k98Dz6bo", // 0 (Sıfır) yerine O (O harfi) düzeltildi
+  authDomain: "stilai-app.firebaseapp.com",
+  projectId: "stilai-app",
+  storageBucket: "stilai-app.firebasestorage.app",
+  messagingSenderId: "883192998070",
+  appId: "1:883192998070:web:5d08e62e70ae92f208de17",
+  measurementId: "G-BR47XGC0RX"
+};
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 // Initialize Auth
 export const auth = getAuth(app);

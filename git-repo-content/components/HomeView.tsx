@@ -6,11 +6,9 @@ import { FashionNewsItem } from '../types';
 interface HomeViewProps {
   onCameraClick: () => void;
   onGalleryClick: () => void;
-  mood: string;
-  setMood: (mood: string) => void;
 }
 
-const HomeView: React.FC<HomeViewProps> = ({ onCameraClick, onGalleryClick, mood, setMood }) => {
+const HomeView: React.FC<HomeViewProps> = ({ onCameraClick, onGalleryClick }) => {
   const [greeting, setGreeting] = useState('');
   const [dateStr, setDateStr] = useState('');
   
@@ -105,29 +103,16 @@ const HomeView: React.FC<HomeViewProps> = ({ onCameraClick, onGalleryClick, mood
               <Sparkles className="w-3 h-3 mr-1 text-yellow-300" /> AI Destekli Analiz
             </div>
             <h3 className="text-2xl font-bold leading-tight mb-2">
-              Bugün nasıl hissetmek istiyorsun?
+              Bugün ne giyeceğine<br/>karar veremedin mi?
             </h3>
-            <p className="text-purple-200 text-sm mb-4 max-w-[90%] leading-relaxed">
-              Giyinik Biliş (Enclothed Cognition) algoritmamız, seçtiğin ruh haline uygun renk ve stil kombinleri oluşturur.
+            <p className="text-purple-200 text-sm mb-6 max-w-[80%] leading-relaxed">
+              Dolabındaki parçayı yükle, sana en uygun kombini saniyeler içinde oluşturalım.
             </p>
-            
-            <div className="flex flex-wrap gap-2 mb-6">
-              {['Otoriter ve Ciddi', 'Rahat ve Yaratıcı', 'Enerjik ve Çarpıcı', 'Minimal ve Doğal'].map(m => (
-                 <button 
-                   key={m}
-                   onClick={() => setMood(m)}
-                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border ${mood === m ? 'bg-white text-purple-900 border-white shadow-md' : 'bg-white/5 border-white/20 text-purple-100 hover:bg-white/20'}`}
-                 >
-                   {m}
-                 </button>
-              ))}
-            </div>
-
             <button 
                 onClick={onCameraClick}
-                className="group flex items-center bg-white text-gray-900 px-6 py-3 rounded-xl font-bold text-sm hover:bg-purple-50 transition shadow-lg shadow-white/10 w-full justify-center"
+                className="group flex items-center bg-white text-gray-900 px-6 py-3 rounded-xl font-bold text-sm hover:bg-purple-50 transition shadow-lg shadow-white/10"
             >
-                Kıyafeti Analiz Et
+                Analize Başla
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </button>
         </div>

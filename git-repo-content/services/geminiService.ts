@@ -1,10 +1,7 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { FashionAnalysis, StoredItem, UserPreferences, WardrobeMatchResult, FashionNewsItem } from "../types";
 
-const ai = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: { timeout: 150000 } // Increase timeout to 150 seconds to prevent premature aborts (was defaulting to 60s)
-});
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Define the schema for the JSON response to ensure type safety from the model
 const analysisSchema: Schema = {
@@ -47,21 +44,18 @@ const getStoredPreferences = (): string => {
   return "";
 };
 
-export const analyzeClothingImage = async (base64Image: string, mimeType: string, mood?: string): Promise<FashionAnalysis> => {
+export const analyzeClothingImage = async (base64Image: string, mimeType: string): Promise<FashionAnalysis> => {
   try {
     const model = "gemini-3-flash-preview";
     const userContext = getStoredPreferences();
-    const moodContext = mood ? `\nMÜŞTERİNİN BUGÜNKÜ RUH HALİ VE HEDEFİ (Mood-Responsive Fashion & Enclothed Cognition): ${mood}. Kombin önerilerini ve renk psikolojisini tamamen bu ruh halini en üst düzeye çıkaracak ve destekleyecek şekilde seç (örn. "Otoriter" ise yüksek kontrastlı renkler, "Rahat" ise dökümlü ve yumuşak tonlar).` : "";
 
     const prompt = `
     Sen profesyonel bir "AI Moda Danışmanı" ve "Görsel Stil Analiz Uzmanı"sın.
-    ${userContext}${moodContext}
+    ${userContext}
     
-    ÖNEMLİ: RENK ANALİZİNİ (DermoCC-GAN konseptinde) yap. Klasik 4 mevsimi aşarak, kontrastı ve alt tonları değerlendirip 12/16 genişletilmiş mevsim paletine göre şeffaf bir değerlendirme metnini "parca_analizi" veya "uzman_tuyosu" içine yedir. (Örn: "Seni [Mevsim] olarak analiz ettik; çünkü...").
-
     Görevlerin:
     1. Görseli analiz et (tür, renk, desen, kumaş).
-    2. Kullanıcının profiline ve bugün hissetmek istediği RUH HALİNE (${mood || 'Gözardı edebilirsin'}) uygun Kombin önerisi yap.
+    2. Kullanıcının profiline (varsa) uygun Kombin önerisi yap.
     3. Kullanım alanını belirt.
     4. Kategori belirle.
     5. Mevsim belirle.
